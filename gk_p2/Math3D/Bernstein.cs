@@ -28,28 +28,4 @@ public static class Bernstein
             _ => 0f
         };
     }
-
-    /// <summary>
-    /// Wyznacza punkt na krzywej Béziera dowolnego stopnia algorytmem de Casteljau.
-    /// </summary>
-    public static Vector2 EvaluateDeCasteljau(IReadOnlyList<Vector2> controlPoints, float t)
-    {
-        int n = controlPoints.Count;
-        if (n == 0) return Vector2.Zero;
-        if (n == 1) return controlPoints[0];
-
-        Span<Vector2> buffer = n <= 32 ? stackalloc Vector2[n] : new Vector2[n];
-        for (int i = 0; i < n; i++)
-            buffer[i] = controlPoints[i];
-
-        for (int r = 1; r < n; r++)
-        {
-            for (int i = 0; i < n - r; i++)
-            {
-                buffer[i] = Vector2.Lerp(buffer[i], buffer[i + 1], t);
-            }
-        }
-
-        return buffer[0];
-    }
 }

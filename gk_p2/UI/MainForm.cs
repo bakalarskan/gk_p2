@@ -26,7 +26,6 @@ public sealed class MainForm : Form
     private DirectBitmap? _frameBuffer;
     private readonly CanvasPanel _canvas = new();
     private readonly System.Windows.Forms.Timer _animationTimer = new();
-    private readonly Stopwatch _frameStopwatch = new();
     private long _lastTickMs;
 
     private int _draggedLightPointIndex = -1;
@@ -159,9 +158,9 @@ public sealed class MainForm : Form
             _canvas.Invalidate();
         };
 
-        _chkControlPoly = new CheckBox { Text = "Wieloboki Béziera (1)", Checked = _scene.ShowControlPolygon, AutoSize = true };
-        _chkWireframe = new CheckBox { Text = "Siatka trójkątów (2)", Checked = _scene.ShowWireframe, AutoSize = true };
-        _chkFilled = new CheckBox { Text = "Wypełnione trójkąty (3)", Checked = _scene.ShowFilledTriangles, AutoSize = true };
+        _chkControlPoly = new CheckBox { Text = "Wieloboki Béziera", Checked = _scene.ShowControlPolygon, AutoSize = true };
+        _chkWireframe = new CheckBox { Text = "Siatka trójkątów", Checked = _scene.ShowWireframe, AutoSize = true };
+        _chkFilled = new CheckBox { Text = "Wypełnione trójkąty", Checked = _scene.ShowFilledTriangles, AutoSize = true };
         _chkLightCurve = new CheckBox { Text = "Krzywa źródła światła", Checked = _scene.ShowLightCurve, AutoSize = true };
 
         _chkControlPoly.CheckedChanged += (_, _) => { _scene.ShowControlPolygon = _chkControlPoly.Checked; _canvas.Invalidate(); };
@@ -183,7 +182,7 @@ public sealed class MainForm : Form
 
     private GroupBox BuildLightingGroup()
     {
-        var grp = CreateGroupBox("2. Model oświetlenia (Lambert + Phong)");
+        var grp = CreateGroupBox("2. Model oświetlenia");
         var layout = CreateInnerStack();
 
         var lblKd = new Label { AutoSize = true, Text = $"kd (rozproszone): {_scene.Kd:F2}" };
@@ -268,24 +267,12 @@ public sealed class MainForm : Form
             _canvas.Invalidate();
         };
 
-        var btnRow = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.LeftToRight };
-        var btnAddPt = new Button { Text = "+ Punkt", Width = 82, Height = 26 };
-        btnAddPt.Click += (_, _) => { _scene.LightCurve.AddControlPoint(); _canvas.Invalidate(); };
-
-        var btnRemPt = new Button { Text = "- Punkt", Width = 82, Height = 26 };
-        btnRemPt.Click += (_, _) =>
-        {
-            if (!_scene.LightCurve.RemoveControlPoint())
-                MessageBox.Show("Krzywa musi zawierać co najmniej 7 punktów kontrolnych (V6 = V0).", "Informacja");
-            _canvas.Invalidate();
-        };
-
         var btnResetCurve = new Button { Text = "Reset", Width = 82, Height = 26 };
         btnResetCurve.Click += (_, _) => { _scene.LightCurve.ResetToDefault(); _canvas.Invalidate(); };
 
-        btnRow.Controls.AddRange([btnAddPt, btnRemPt, btnResetCurve]);
-        layout.Controls.AddRange([_btnToggleAnim, lblZ, trkZ, _chkEditLightCurve, btnRow]);
+        layout.Controls.AddRange([_btnToggleAnim, lblZ, trkZ, _chkEditLightCurve, btnResetCurve]);
         grp.Controls.Add(layout);
+
         return grp;
     }
 
@@ -389,26 +376,6 @@ public sealed class MainForm : Form
             _canvas.Invalidate();
         };
 
-        var cmbPresets = new ComboBox
-        {
-            DropDownStyle = ComboBoxStyle.DropDownList,
-            Width = 258
-        };
-        cmbPresets.Items.AddRange(["Cegły", "Fale koncentryczne", "Pikowanie"]);
-        cmbPresets.SelectedIndex = 0;
-
-        var lblNormalInfo = new Label { AutoSize = true, ForeColor = Color.DimGray, Text = _scene.NormalMap.Name };
-
-        cmbPresets.SelectedIndexChanged += (_, _) =>
-        {
-            if (cmbPresets.SelectedItem is string preset)
-            {
-                _scene.NormalMap = TextureBuffer.CreateProceduralNormalMap(preset);
-                lblNormalInfo.Text = _scene.NormalMap.Name;
-                _canvas.Invalidate();
-            }
-        };
-
         var btnLoadNormal = new Button { Text = "Wczytaj NormalMap z pliku...", Width = 258, Height = 28 };
         btnLoadNormal.Click += (_, _) =>
         {
@@ -422,7 +389,6 @@ public sealed class MainForm : Form
                 try
                 {
                     _scene.NormalMap = TextureBuffer.FromFile(dlg.FileName);
-                    lblNormalInfo.Text = $"Plik: {_scene.NormalMap.Name}";
                     _chkNormalMap.Checked = true;
                     _canvas.Invalidate();
                 }
@@ -433,7 +399,7 @@ public sealed class MainForm : Form
             }
         };
 
-        layout.Controls.AddRange([_chkNormalMap, cmbPresets, btnLoadNormal, lblNormalInfo]);
+        layout.Controls.AddRange([_chkNormalMap, btnLoadNormal]);
         grp.Controls.Add(layout);
         return grp;
     }
@@ -591,17 +557,8 @@ public sealed class MainForm : Form
             _frameBuffer = new DirectBitmap(_canvas.Width, _canvas.Height);
         }
 
-        _frameStopwatch.Restart();
         _renderer.Render(_frameBuffer, _scene, _hoveredLightPointIndex);
-        _frameStopwatch.Stop();
-
         e.Graphics.DrawImageUnscaled(_frameBuffer.Bitmap, 0, 0);
-
-        Vector3 lp = _scene.LightCurve.CurrentLightPosition;
-        _lblStatus.Text =
-            $"Powierzchnie: {_scene.Surfaces.Count} | Trójkąty: {_scene.TotalTriangles} | " +
-            $"Klatka: {_frameStopwatch.Elapsed.TotalMilliseconds:F1} ms | " +
-            $"Światło: ({lp.X:F0}, {lp.Y:F0}, {lp.Z:F0}) | F1: Dokumentacja";
     }
 
     // --- Obsługa myszy i klawiatury ---

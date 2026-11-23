@@ -14,11 +14,11 @@ public sealed class SceneRenderer
         buffer.Clear(BackgroundColor);
 
         // 1. Wypełnione trójkąty z oświetleniem i Z-bufferem
-        if (scene.ShowFilledTriangles)
+        if (scene.ShowFilledTriangles || scene.ShowWireframe)
         {
             foreach (var surface in scene.Surfaces)
             {
-                _rasterizer.RasterizeSurface(buffer, surface, scene);
+                _rasterizer.RasterizeSurface(buffer, surface, scene, BackgroundColor.ToArgb());
             }
         }
 
@@ -28,9 +28,6 @@ public sealed class SceneRenderer
 
         float halfW = buffer.Width * 0.5f;
         float halfH = buffer.Height * 0.5f;
-
-        if (scene.ShowWireframe)
-            DrawWireframe(g, scene, halfW, halfH);
 
         if (scene.ShowControlPolygon)
             DrawControlPolygons(g, scene, halfW, halfH);
@@ -45,24 +42,6 @@ public sealed class SceneRenderer
     private static PointF Project(Vector2 p, float halfW, float halfH) =>
         new(halfW + p.X, halfH - p.Y);
 
-    private static void DrawWireframe(Graphics g, Scene scene, float halfW, float halfH)
-    {
-        using var pen = new Pen(Color.FromArgb(145, 225, 235, 245), 1f);
-
-        foreach (var surface in scene.Surfaces)
-        {
-            foreach (var tri in surface.Triangles)
-            {
-                PointF p0 = Project(tri.V0.RotatedPosition, halfW, halfH);
-                PointF p1 = Project(tri.V1.RotatedPosition, halfW, halfH);
-                PointF p2 = Project(tri.V2.RotatedPosition, halfW, halfH);
-
-                g.DrawLine(pen, p0, p1);
-                g.DrawLine(pen, p1, p2);
-                g.DrawLine(pen, p2, p0);
-            }
-        }
-    }
 
     private static void DrawControlPolygons(Graphics g, Scene scene, float halfW, float halfH)
     {

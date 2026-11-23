@@ -5,9 +5,6 @@ namespace BezierSurfacesApp.Models;
 
 public sealed class LightCurve
 {
-    // Minimum 2 segmenty 3. stopnia: V0..V3 oraz V3..V6 (V6 = V0) -> 7 punktów
-    public const int MinimumControlPoints = 7;
-
     public List<Vector2> ControlPoints { get; } = new();
 
     public float Z { get; set; } = 240f;
@@ -82,41 +79,6 @@ public sealed class LightCurve
             ControlPoints[^1] = newPos;
         else if (index == ControlPoints.Count - 1)
             ControlPoints[0] = newPos;
-    }
-
-    /// <summary>
-    /// Dzieli ostatni segment sześcienny w połowie (de Casteljau), dodając nowy węzeł na krzywej (+3 punkty).
-    /// </summary>
-    public void AddControlPoint()
-    {
-        int start = ControlPoints.Count - 4;
-        Vector2 p0 = ControlPoints[start];
-        Vector2 p1 = ControlPoints[start + 1];
-        Vector2 p2 = ControlPoints[start + 2];
-        Vector2 p3 = ControlPoints[start + 3];
-
-        Vector2 q0 = (p0 + p1) * 0.5f;
-        Vector2 q1 = (p1 + p2) * 0.5f;
-        Vector2 q2 = (p2 + p3) * 0.5f;
-        Vector2 r0 = (q0 + q1) * 0.5f;
-        Vector2 r1 = (q1 + q2) * 0.5f;
-        Vector2 mid = (r0 + r1) * 0.5f;
-
-        ControlPoints[start + 1] = q0;
-        ControlPoints[start + 2] = r0;
-        ControlPoints.InsertRange(start + 3, [mid, r1, q2]);
-    }
-
-    /// <summary>
-    /// Usuwa ostatni dodatkowy segment (-3 punkty), zachowując minimum 7 punktów.
-    /// </summary>
-    public bool RemoveControlPoint()
-    {
-        if (ControlPoints.Count <= MinimumControlPoints)
-            return false;
-
-        ControlPoints.RemoveRange(ControlPoints.Count - 4, 3);
-        return true;
     }
 
     public int HitTestControlPoint(Vector2 worldPos, float hitRadius = 14f)

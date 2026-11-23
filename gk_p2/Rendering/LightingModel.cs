@@ -45,23 +45,15 @@ public static class LightingModel
         Vector3 l = distSq > 1e-8f ? toLight / MathF.Sqrt(distSq) : Vector3.UnitZ;
 
         // 5. Składowa rozproszona Lamberta: cos(N, L) = <N, L>, ujemne -> 0
-        float cosNL = Vector3.Dot(n, l);
-        if (cosNL < 0f) cosNL = 0f;
+        float dotNL = Vector3.Dot(n, l);
 
-        // 6. Składowa zwierciadlana: R = 2 * <N, L> * N - L, cos^m(V, R)
-        float spec = 0f;
-        if (cosNL > 0f && scene.Ks > 0f)
-        {
-            Vector3 r = 2f * cosNL * n - l;
-            float rLenSq = r.LengthSquared();
-            if (rLenSq > 1e-8f)
-            {
-                r /= MathF.Sqrt(rLenSq);
-                float cosVR = Vector3.Dot(ViewVector, r);
-                if (cosVR > 0f)
-                    spec = MathF.Pow(cosVR, scene.ShininessM);
-            }
-        }
+        // Światło rozproszone
+        float cosNL = MathF.Max(0f, dotNL);
+
+        // Połysk
+        Vector3 r = Vector3.Normalize(2f * dotNL * n - l);
+        float cosVR = MathF.Max(0f, Vector3.Dot(ViewVector, r));
+        float spec = MathF.Pow(cosVR, scene.ShininessM);
 
         // 7. Końcowe równanie oświetlenia dla R, G, B w [0, 1]
         float factor = scene.Kd * cosNL + scene.Ks * spec;

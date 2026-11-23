@@ -27,7 +27,7 @@ public sealed class ScanlineRasterizer
         _allocatedHeight = height;
     }
 
-    public void RasterizeSurface(DirectBitmap target, BezierSurface surface, Scene scene)
+    public void RasterizeSurface(DirectBitmap target, BezierSurface surface, Scene scene, int backgroundArgb)
     {
         int width = target.Width;
         int height = target.Height;
@@ -42,6 +42,9 @@ public sealed class ScanlineRasterizer
 
         int[] bits = target.Bits;
         float[] zBuffer = target.ZBuffer;
+
+        int wireArgb = Color.FromArgb(225, 235, 245).ToArgb();
+        const float edgeWidth = 0.65f;
 
         foreach (var tri in surface.Triangles)
         {
@@ -63,6 +66,20 @@ public sealed class ScanlineRasterizer
                 continue; // trójkąt zdegenerowany (powierzchnia 0)
 
             float invDet = 1f / det;
+
+            float alphaLimit = 0f, betaLimit = 0f, gammaLimit = 0f;
+
+            if (scene.ShowWireframe)
+            {
+                Vector2 p0 = new(x0, y0);
+                Vector2 p1 = new(x1, y1);
+                Vector2 p2 = new(x2, y2);
+
+                float scale = edgeWidth * MathF.Abs(invDet);
+                alphaLimit = scale * Vector2.Distance(p1, p2);
+                betaLimit = scale * Vector2.Distance(p2, p0);
+                gammaLimit = scale * Vector2.Distance(p0, p1);
+            }
 
             // Budowa kubełkowej tablicy krawędzi (Edge Table - ET)
             int scanYMin = height;
@@ -139,27 +156,41 @@ public sealed class ScanlineRasterizer
                         if (z > zBuffer[pixelIdx])
                         {
                             zBuffer[pixelIdx] = z;
+                            bool isEdge = scene.ShowWireframe &&
+                                (alpha <= alphaLimit || beta <= betaLimit || gamma <= gammaLimit);
 
-                            // Interpolacja wektora normalnego i parametrów (u, v)
-                            Vector3 interpN = alpha * v0.RotatedNormal + beta * v1.RotatedNormal + gamma * v2.RotatedNormal;
-                            Vector3 nNorm = interpN.LengthSquared() > 1e-8f ? Vector3.Normalize(interpN) : Vector3.UnitZ;
-
-                            float u = Math.Clamp(alpha * v0.U + beta * v1.U + gamma * v2.U, 0f, 1f);
-                            float v = Math.Clamp(alpha * v0.V + beta * v1.V + gamma * v2.V, 0f, 1f);
-
-                            Vector3 puNorm = Vector3.UnitX;
-                            Vector3 pvNorm = Vector3.UnitY;
-                            if (useNormalMap)
+                            if (isEdge)
                             {
-                                Vector3 interpPu = alpha * v0.RotatedPu + beta * v1.RotatedPu + gamma * v2.RotatedPu;
-                                Vector3 interpPv = alpha * v0.RotatedPv + beta * v1.RotatedPv + gamma * v2.RotatedPv;
-                                puNorm = interpPu.LengthSquared() > 1e-8f ? Vector3.Normalize(interpPu) : Vector3.UnitX;
-                                pvNorm = interpPv.LengthSquared() > 1e-8f ? Vector3.Normalize(interpPv) : Vector3.UnitY;
+                                bits[pixelIdx] = wireArgb;
                             }
+                            else if (!scene.ShowFilledTriangles)
+                            {
+                                bits[pixelIdx] = backgroundArgb;
+                            }
+                            else
+                            {
 
-                            Vector3 fragPos = new(x - halfW, worldY, z);
-                            bits[pixelIdx] = LightingModel.ComputePixelArgb(
-                                fragPos, nNorm, puNorm, pvNorm, u, v, surface, scene, lightPos, lightColor);
+                                // Interpolacja wektora normalnego i parametrów (u, v)
+                                Vector3 interpN = alpha * v0.RotatedNormal + beta * v1.RotatedNormal + gamma * v2.RotatedNormal;
+                                Vector3 nNorm = interpN.LengthSquared() > 1e-8f ? Vector3.Normalize(interpN) : Vector3.UnitZ;
+
+                                float u = Math.Clamp(alpha * v0.U + beta * v1.U + gamma * v2.U, 0f, 1f);
+                                float v = Math.Clamp(alpha * v0.V + beta * v1.V + gamma * v2.V, 0f, 1f);
+
+                                Vector3 puNorm = Vector3.UnitX;
+                                Vector3 pvNorm = Vector3.UnitY;
+                                if (useNormalMap)
+                                {
+                                    Vector3 interpPu = alpha * v0.RotatedPu + beta * v1.RotatedPu + gamma * v2.RotatedPu;
+                                    Vector3 interpPv = alpha * v0.RotatedPv + beta * v1.RotatedPv + gamma * v2.RotatedPv;
+                                    puNorm = interpPu.LengthSquared() > 1e-8f ? Vector3.Normalize(interpPu) : Vector3.UnitX;
+                                    pvNorm = interpPv.LengthSquared() > 1e-8f ? Vector3.Normalize(interpPv) : Vector3.UnitY;
+                                }
+
+                                Vector3 fragPos = new(x - halfW, worldY, z);
+                                bits[pixelIdx] = LightingModel.ComputePixelArgb(
+                                    fragPos, nNorm, puNorm, pvNorm, u, v, surface, scene, lightPos, lightColor);
+                            }
                         }
 
                         alpha += dAlphaDx;

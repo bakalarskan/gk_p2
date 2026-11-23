@@ -146,39 +146,22 @@ public sealed class TextureBuffer
                 float u = x / (float)(size - 1);
                 Vector3 n;
 
-                if (preset == "Cegły")
-                {
-                    float rows = 8f, cols = 4f;
-                    int rowIdx = (int)(v * rows);
-                    float localV = (v * rows) % 1f;
-                    float localU = ((u * cols) + (rowIdx % 2 == 1 ? 0.5f : 0f)) % 1f;
+                //cegły
+                float rows = 8f, cols = 4f;
+                int rowIdx = (int)(v * rows);
+                float localV = (v * rows) % 1f;
+                float localU = ((u * cols) + (rowIdx % 2 == 1 ? 0.5f : 0f)) % 1f;
 
-                    float nx = 0f, ny = 0f;
-                    const float bevel = 0.09f;
-                    if (localU < bevel) nx = -0.65f;
-                    else if (localU > 1f - bevel) nx = 0.65f;
+                float nx = 0f, ny = 0f;
+                const float bevel = 0.09f;
+                if (localU < bevel) nx = -0.65f;
+                else if (localU > 1f - bevel) nx = 0.65f;
 
-                    if (localV < bevel * 1.6f) ny = -0.65f;
-                    else if (localV > 1f - bevel * 1.6f) ny = 0.65f;
+                if (localV < bevel * 1.6f) ny = -0.65f;
+                else if (localV > 1f - bevel * 1.6f) ny = 0.65f;
 
-                    n = Vector3.Normalize(new Vector3(nx, ny, 1f));
-                }
-                else if (preset == "Pikowanie")
-                {
-                    float freq = 6f * MathF.PI;
-                    float nx = 0.55f * MathF.Cos(u * freq) * MathF.Sin(v * freq);
-                    float ny = 0.55f * MathF.Sin(u * freq) * MathF.Cos(v * freq);
-                    n = Vector3.Normalize(new Vector3(nx, ny, 1f));
-                }
-                else // "Fale koncentryczne"
-                {
-                    float dx = u - 0.5f;
-                    float dy = v - 0.5f;
-                    float dist = MathF.Sqrt(dx * dx + dy * dy) + 1e-5f;
-                    float slope = 0.55f * MathF.Cos(dist * 38f);
-                    n = Vector3.Normalize(new Vector3((dx / dist) * slope, (dy / dist) * slope, 1f));
-                }
-
+                n = Vector3.Normalize(new Vector3(nx, ny, 1f));
+                
                 int idx = y * size + x;
                 normals[idx] = n;
                 colors[idx] = new Vector3((n.X + 1f) * 0.5f, (n.Y + 1f) * 0.5f, (n.Z + 1f) * 0.5f);
