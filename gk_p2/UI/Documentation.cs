@@ -1,198 +1,341 @@
-﻿namespace BezierSurfacesApp.UI;
+﻿using System.Drawing;
+using System.Windows.Forms;
 
+namespace BezierSurfacesApp.UI;
+
+/// <summary>
+/// Dokumentacja użytkownika oraz opis zastosowanych algorytmów.
+/// </summary>
 public sealed class DocumentationForm : Form
 {
+    private static readonly Font TitleFont = new("Segoe UI", 15f, FontStyle.Bold);
+    private static readonly Font SectionFont = new("Segoe UI", 11f, FontStyle.Bold);
+    private static readonly Font BodyFont = new("Segoe UI", 9.5f);
+    private static readonly Font LabelFont = new("Segoe UI", 9.5f, FontStyle.Bold);
+    private static readonly Font FormulaFont = new("Consolas", 9.5f);
+
+    private static readonly Color TextColor = Color.FromArgb(38, 43, 50);
+    private static readonly Color HeadingColor = Color.FromArgb(255, 22, 148);
+    private static readonly Color SecondaryColor = Color.FromArgb(86, 93, 102);
+
     public DocumentationForm()
     {
         Text = "Dokumentacja – Powierzchnie Béziera 3D";
-        Size = new Size(760, 620);
+        Size = new Size(810, 660);
+        MinimumSize = new Size(660, 500);
         StartPosition = FormStartPosition.CenterParent;
-        MinimumSize = new Size(620, 480);
+        Font = BodyFont;
 
-        var tabs = new TabControl { Dock = DockStyle.Fill };
+        var tabs = new TabControl
+        {
+            Dock = DockStyle.Fill,
+            Font = BodyFont
+        };
 
-        tabs.TabPages.Add(CreateTextTab("Instrukcja obsługi i skróty", GetUserManualText()));
-        tabs.TabPages.Add(CreateTextTab("Opis techniczny obrotu myszą (Trackball)", GetTrackballTechDescription()));
-        tabs.TabPages.Add(CreateTextTab("Model matematyczny i algorytmy", GetMathOverviewText()));
+        tabs.TabPages.Add(CreateTab("Instrukcja obsługi", BuildUserManual));
+        tabs.TabPages.Add(CreateTab("Sterowanie obrotem 3D", BuildRotationDescription));
+        tabs.TabPages.Add(CreateTab("Model i algorytmy", BuildAlgorithmDescription));
 
         Controls.Add(tabs);
     }
 
-    private static TabPage CreateTextTab(string title, string content)
+    private static TabPage CreateTab(string title, Action<RichTextBox> buildContent)
     {
-        var page = new TabPage(title);
-        var box = new RichTextBox
+        var page = new TabPage(title)
+        {
+            BackColor = Color.White,
+            Padding = new Padding(16, 14, 16, 12)
+        };
+
+        var content = new RichTextBox
         {
             Dock = DockStyle.Fill,
             ReadOnly = true,
-            BackColor = Color.White,
-            Font = new Font("Consolas", 9.8f),
-            Text = content,
             BorderStyle = BorderStyle.None,
+            BackColor = Color.White,
+            ForeColor = TextColor,
+            Font = BodyFont,
+            WordWrap = true,
+            DetectUrls = false,
             ScrollBars = RichTextBoxScrollBars.Vertical
         };
-        page.Controls.Add(box);
+
+        page.Controls.Add(content);
+        buildContent(content);
+        content.SelectionStart = 0;
+        content.SelectionLength = 0;
         return page;
     }
 
-    private static string GetUserManualText() =>
-"""
-====================================================================
-  INSTRUKCJA OBSŁUGI APLIKACJI – POWIERZCHNIE BÉZIERA 3D
-====================================================================
+    private static void AppendText(RichTextBox box, string text, Font font, Color color, int indent = 0)
+    {
+        box.SelectionStart = box.TextLength;
+        box.SelectionLength = 0;
+        box.SelectionFont = font;
+        box.SelectionColor = color;
+        box.SelectionIndent = indent;
+        box.AppendText(text + Environment.NewLine);
+    }
 
-1. STEROWANIE MYSZĄ W OBSZARZE RYSOWANIA
---------------------------------------------------------------------
-• Lewy przycisk myszy (LPM) + przeciąganie:
-    Swobodny, narastający obrót sceny w przestrzeni 3D (wirtualny
-    Trackball). Brak ograniczeń kątów – można wykonać dowolną
-    liczbę pełnych obrotów w każdym kierunku.
+    private static void Title(RichTextBox box, string text)
+    {
+        AppendText(box, text, TitleFont, HeadingColor);
+        AppendText(box, "", BodyFont, TextColor);
+    }
 
-• Prawy przycisk myszy (PPM) + przeciąganie (lub Shift + LPM):
-    Obrót sceny wokół osi Z (roll – obrót w płaszczyźnie ekranu)
-    względem środka obszaru rysowania.
+    private static void Section(RichTextBox box, string text)
+    {
+        AppendText(box, "", BodyFont, TextColor);
+        AppendText(box, text, SectionFont, HeadingColor);
+    }
 
-• Edycja krzywej źródła światła (gdy aktywny jest tryb "Edytuj krzywą"):
-    Złapanie LPM punktu kontrolnego (V0..Vn-1) na ekranie pozwala
-    go przeciągać. Przesunięcie V0 automatycznie przesuwa punkt
-    zamykający V_ostatni = V0, zachowując ciągłość pętli.
+    private static void Paragraph(RichTextBox box, string text) =>
+        AppendText(box, text, BodyFont, TextColor);
 
-2. SKRÓTY KLAWIATUROWE
---------------------------------------------------------------------
-• Spacja   – zatrzymanie / wznowienie animacji źródła światła
-• R        – reset orientacji sceny do widoku początkowego
-• E        – włączenie / wyłączenie trybu edycji krzywej światła
-• 1        – przełączenie widoczności wieloboków Béziera
-• 2        – przełączenie widoczności siatki trójkątów
-• 3        – przełączenie widoczności wypełnionych trójkątów
-• N        – włączenie / wyłączenie mapy wektorów normalnych
-• F1       – otwarcie niniejszego okna dokumentacji
+    private static void Entry(RichTextBox box, string name, string description)
+    {
+        box.SelectionStart = box.TextLength;
+        box.SelectionLength = 0;
+        box.SelectionIndent = 12;
+        box.SelectionFont = LabelFont;
+        box.SelectionColor = TextColor;
+        box.AppendText(name + " – ");
+        box.SelectionFont = BodyFont;
+        box.AppendText(description + Environment.NewLine);
+    }
+    private static void Formula(RichTextBox box, string text) =>
+        AppendText(box, text, FormulaFont, SecondaryColor, 20);
+    private static void BuildUserManual(RichTextBox box)
+    {
+        Title(box, "Instrukcja obsługi");
+        Paragraph(box,
+            "Program służy do wyświetlania i interaktywnego obracania powierzchni " +
+            "Béziera trzeciego stopnia. Widok sceny jest rzutem prostokątnym " +
+            "na płaszczyznę xy.");
 
-3. PANEL STEROWANIA (PO PRAWEJ STRONIE)
---------------------------------------------------------------------
-• Scena i triangulacja:
-    Suwak określa gęstość podziału siatki (N x N oczek na każdą
-    powierzchnię). Przycisk "Wczytaj plik..." pozwala wczytać inny
-    plik tekstowy zawierający grupy po 16 punktów kontrolnych.
+        Section(box, "1. Wczytywanie powierzchni");
+        Paragraph(box,
+            "Przy uruchomieniu aplikacja próbuje odczytać plik Assets/surfaces.txt " +
+            "z katalogu programu. Można również wskazać inny plik przyciskiem " +
+            "„Wczytaj plik...” w panelu „Scena i triangulacja”.");
+        Paragraph(box,
+            "Każda powierzchnia jest określona przez 16 punktów kontrolnych " +
+            "zapisanych w kolejnych wierszach. W każdym wierszu znajdują się " +
+            "trzy współrzędne (x, y, z), oddzielone białymi znakami. " +
+            "Plik musi zawierać co najmniej dwie grupy po 16 punktów.");
 
-• Oświetlenie (Lambert + Phong):
-    Suwaki kd (0..1), ks (0..1) oraz m (1..100) działają globalnie
-    dla całej sceny. Przycisk koloru zmienia barwę światła I_L.
+        Section(box, "2. Obracanie i wyświetlanie sceny");
+        Entry(box, "LPM + przeciąganie",
+            "swobodny obrót przestrzenny metodą wirtualnego trackballa.");
+        Entry(box, "PPM + przeciąganie",
+            "obrót wokół osi z, prostopadłej do płaszczyzny obrazu.");
+        Entry(box, "Shift + LPM + przeciąganie",
+            "alternatywne sterowanie obrotem wokół osi z.");
+        Entry(box, "Reset obrotu (R)",
+            "przywrócenie początkowej orientacji sceny.");
+        Paragraph(box,
+            "Suwak „Dokładność triangulacji” ustala liczbę podziałów " +
+            "parametrów u i v. Dla wartości n każda powierzchnia składa się " +
+            "z 2n² trójkątów. Pola wyboru pozwalają niezależnie wyświetlać " +
+            "wieloboki kontrolne Béziera, siatkę trójkątów i ich wypełnienie.");
+        Paragraph(box,
+            "Wieloboki kontrolne są rysowane jako nakładka na obraz sceny. " +
+            "Ich linie mogą być widoczne także nad fragmentami innych powierzchni.");
 
-• Kolor obiektu I_O (niezależny na powierzchnię):
-    Lista rozwijana wybiera aktywną powierzchnię. Przyciski radiowe
-    przełączają między jednolitym kolorem a teksturą (można wczytać
-    własny obraz PNG/JPG/BMP).
+        Section(box, "3. Oświetlenie");
+        Paragraph(box,
+            "W panelu „Model oświetlenia” można ustawić współczynnik " +
+            "rozproszenia kd, współczynnik odbicia zwierciadlanego ks, " +
+            "wykładnik połysku m oraz kolor światła. Ustawienia obowiązują " +
+            "dla wszystkich powierzchni.");
+        Entry(box, "Edytuj punkty krzywej myszą",
+    "po włączeniu trybu można przeciągać punkty kontrolne LPM; skrót: E.");
+        Entry(box, "Reset",
+            "przywrócenie pierwotnego położenia punktów kontrolnych krzywej.");
+        Paragraph(box,
+            "Pierwszy i ostatni punkt kontrolny są ze sobą powiązane, " +
+            "aby krzywa pozostawała zamknięta. Aktualne położenie źródła " +
+            "światła jest zaznaczone na krzywej.");
 
-• Mapa wektorów normalnych:
-    Można włączyć modyfikację normalnych, wybrać jeden z 3 wbudowanych
-    wzorów proceduralnych lub wczytać własną mapę normalnych z pliku.
-""";
+        Section(box, "5. Kolor i tekstury");
+        Paragraph(box,
+            "W panelu „Kolor obiektu” należy najpierw wybrać powierzchnię " +
+            "z listy, a następnie wskazać jednolity kolor lub teksturę. " +
+            "Ustawienia koloru i tekstury są niezależne dla każdej powierzchni. " +
+            "Teksturę można wczytać z pliku PNG, JPG, JPEG lub BMP.");
+        Paragraph(box,
+            "Panel „Mapa wektorów normalnych” umożliwia włączenie modyfikacji " +
+            "normalnych na podstawie mapy. Początkowo dostępna jest mapa " +
+            "wygenerowana w programie; można ją zastąpić obrazem wczytanym " +
+            "z pliku. Włączenie mapy działa na całą scenę.");
 
-    private static string GetTrackballTechDescription() =>
-"""
-====================================================================
-  OPIS TECHNICZNY: PRZEKSZTAŁCANIE RUCHU 2D MYSZY NA OBRÓT 3D
-====================================================================
+        Section(box, "6. Skróty klawiaturowe");
+        Entry(box, "Spacja", "zatrzymanie lub wznowienie animacji.");
+        Entry(box, "R", "przywrócenie początkowej orientacji sceny.");
+        Entry(box, "E", "włączenie lub wyłączenie edycji krzywej światła.");
+        Entry(box, "1", "widoczność wieloboków kontrolnych Béziera.");
+        Entry(box, "2", "widoczność siatki trójkątów.");
+        Entry(box, "3", "widoczność wypełnionych trójkątów.");
+        Entry(box, "N", "włączenie lub wyłączenie mapy normalnych.");
+        Entry(box, "F1", "otwarcie dokumentacji.");
+    }
 
-Zastosowano metodę wirtualnego Trackballa (hybryda sfery Shoemake'a
-i hiperboloidy Holroyda) połączoną z inkrementalnym składaniem
-macierzy obrotu 3x3 (TrackballController.cs + Matrix3x3.cs).
+    private static void BuildRotationDescription(RichTextBox box)
+    {
+        Title(box, "Sterowanie obrotem 3D");
+        Paragraph(box,
+            "Do sterowania orientacją sceny zastosowano wirtualny trackball. " +
+            "Każde przesunięcie myszy wyznacza osobny obrót przyrostowy, " +
+            "który jest składany z aktualną macierzą orientacji. Rozwiązanie " +
+            "nie wymaga ograniczania zakresu kątów obrotu.");
 
-1. DLACZEGO TRACKBALL ZAMIAST KĄTÓW EULERA?
---------------------------------------------------------------------
-Bezpośrednie mapowanie (dx -> beta, dy -> alfa) na kąty Eulera
-powoduje efekt blokady przegubu (gimbal lock) oraz nieintuicyjne
-odwracanie kierunków obrotu, gdy obiekt zostanie obrócony "do góry
-nogami". Zastosowanie przyrostowych macierzy obrotu wokół osi
-ekranowych rozwiązuje ten problem całkowicie:
-• ruch myszy zawsze obraca obiekt zgodnie z kierunkiem kursora,
-• kąty nie są w żaden sposób ograniczane,
-• przejście poza okrąg wpisany w ekran płynnie przechodzi w obrót
-  wokół osi Z.
+        Section(box, "1. Odwzorowanie pozycji kursora");
+        Paragraph(box,
+            "Niech W i H oznaczają szerokość i wysokość obszaru rysowania, " +
+            "a (px, py) – współrzędne kursora. Środek układu jest przeniesiony " +
+            "do środka obszaru rysowania, a zwrot osi y jest odwrócony:");
+        Formula(box, "r = 0,45 · min(W, H)");
+        Formula(box, "x = (px − W/2) / r");
+        Formula(box, "y = (H/2 − py) / r");
+        Formula(box, "d² = x² + y²");
+        Paragraph(box,
+            "Współrzędną z oblicza się z funkcji kawałkami określonej, " +
+            "łączącej górną półsferę z powierzchnią hiperboliczną:");
+        Formula(box, "z = sqrt(1 − d²)      dla d² ≤ 0,5");
+        Formula(box, "z = 0,5 / sqrt(d²)    dla d² > 0,5");
+        Paragraph(box,
+            "Otrzymany wektor (x, y, z) jest normalizowany. Taki sposób " +
+            "odwzorowania zapewnia ciągłość sterowania również poza " +
+            "centralnym obszarem trackballa.");
 
-2. RZUTOWANIE PUNKTU EKRANOWEGO NA POWIERZCHNIĘ TRACKBALLA
---------------------------------------------------------------------
-Niech (W, H) będzie rozmiarem obszaru rysowania, a promieniem sfery
-r = 0.45 * min(W, H). Dla pozycji kursora (p_x, p_y) wyznaczamy
-znormalizowane współrzędne (oś Y skierowana w górę):
+        Section(box, "2. Oś i kąt obrotu");
+        Paragraph(box,
+            "Dla poprzedniej i bieżącej pozycji kursora wyznacza się " +
+            "znormalizowane wektory u1 i u2. Oś obrotu wynika z ich " +
+            "iloczynu wektorowego, a kąt – z iloczynu skalarnego:");
+        Formula(box, "a = u1 × u2");
+        Formula(box, "k = a / |a|");
+        Formula(box, "θ = arccos(clamp(u1 · u2, −1, 1)) · s");
+        Paragraph(box,
+            "Parametr s określa czułość sterowania (wartość domyślna: 1,35). " +
+            "Przy znikomej długości osi obrotu przyjmowana jest macierz " +
+            "jednostkowa. Macierz obrotu wokół osi k jest wyznaczana " +
+            "ze wzoru Rodriguesa:");
+        Formula(box, "R(k, θ) = I cos θ + (1 − cos θ) kkᵀ + [k]× sin θ");
+        Section(box, "3. Obrót wokół osi z");
+        Paragraph(box,
+            "Przy przeciąganiu PPM lub Shift + LPM zamiast trackballa " +
+            "wykorzystuje się zmianę kąta biegunowego kursora względem " +
+            "środka obszaru rysowania. Różnica kątów jest sprowadzana " +
+            "do przedziału [−π, π], a następnie tworzy się macierz Rz(Δγ).");
+        Formula(box, "Δγ = atan2(y2, x2) − atan2(y1, x1)");
 
-    x = (p_x - W / 2) / r
-    y = (H / 2 - p_y) / r
-    d^2 = x^2 + y^2
+        Section(box, "4. Aktualizacja orientacji");
+        Paragraph(box,
+            "W programie stosowana jest konwencja wektorów kolumnowych. " +
+            "Nowy obrót jest składany lewostronnie z dotychczasową orientacją:");
+        Formula(box, "Rnowa = Rprzyrost · Raktualna");
+        Formula(box, "P' = Rnowa · P");
+        Paragraph(box,
+            "Po złożeniu macierzy jej kolumny są ortonormalizowane metodą " +
+            "Grama–Schmidta w celu ograniczenia błędów numerycznych. " +
+            "Każdy wierzchołek, punkt kontrolny oraz wektory styczne i " +
+            "normalne są przekształcane na podstawie danych sprzed obrotu. " +
+            "Obrót odbywa się wokół początku układu współrzędnych (0, 0, 0).");
 
-Współrzędną z wyznaczamy kawałkami (gładkie przejście klasy C^1
-dla d = 1/sqrt(2)):
+        Section(box, "5. Rzutowanie");
+        Paragraph(box,
+            "Do wyświetlenia sceny używany jest rzut prostokątny na " +
+            "płaszczyznę xy. Po obrocie współrzędne ekranowe są obliczane " +
+            "z x' i y', natomiast z' służy do określania widoczności " +
+            "fragmentów w buforze głębokości.");
+        Formula(box, "xekran = W/2 + x'");
+        Formula(box, "yekran = H/2 − y'");
+    }
 
-    • dla d^2 <= 0.5:   z = sqrt(1 - d^2)     (górna półsfera)
-    • dla d^2 >  0.5:   z = 0.5 / sqrt(d^2)   (hiperboloida)
+    private static void BuildAlgorithmDescription(RichTextBox box)
+    {
+        Title(box, "Model i algorytmy renderowania");
 
-Następnie wektor jest normalizowany: u = (x, y, z) / ||(x, y, z)||.
+        Section(box, "1. Powierzchnia Béziera");
+        Paragraph(box,
+            "Każda powierzchnia jest płatem Béziera trzeciego stopnia, " +
+            "określonym siatką 4 × 4 punktów kontrolnych. Punkt powierzchni " +
+            "wyznaczany jest z wielomianów Bernsteina dla parametrów " +
+            "u, v należących do przedziału [0, 1]:");
+        Formula(box, "P(u,v) = Σ(i=0..3) Σ(j=0..3) Vij Bi,3(u) Bj,3(v)");
+        Paragraph(box,
+            "Wektory styczne są pochodnymi cząstkowymi Pu = ∂P/∂u " +
+            "oraz Pv = ∂P/∂v. Normalna powierzchni jest wyznaczana " +
+            "przez normalizację iloczynu wektorowego Pu × Pv.");
 
-3. WYZNACZENIE PRZYROSTOWEJ MACIERZY OBROTU (WZÓR RODRIGUESA)
---------------------------------------------------------------------
-Dla dwóch kolejnych położeń kursora otrzymujemy wersory u_1 i u_2:
-    • oś obrotu:   a = u_1 x u_2   (po normalizacji: k = a / ||a||)
-    • kąt obrotu:  theta = arccos(clamp(u_1 · u_2, -1, 1)) * czułość
+        Section(box, "2. Triangulacja");
+        Paragraph(box,
+            "Dziedzina parametrów jest dzielona na n × n oczek. " +
+            "W każdym węźle wyznaczane są położenie, wektory styczne, " +
+            "normalna i parametry (u, v). Każde oczko dzielone jest " +
+            "na dwa trójkąty. Gęstość podziału reguluje suwak w panelu sceny.");
 
-Na podstawie osi k = (k_x, k_y, k_z) i kąta theta budujemy macierz
-przyrostu R_przyrost ze wzoru Rodriguesa:
+        Section(box, "3. Rasteryzacja metodą scan-line");
+        Paragraph(box,
+            "Wypełnianie odbywa się programowo metodą linii skanującej " +
+            "z kubełkowym sortowaniem krawędzi (Edge Table). " +
+            "Niepoziome krawędzie trójkąta są dodawane do kubełków " +
+            "odpowiadających początkowej współrzędnej y. W kolejnych " +
+            "wierszach aktywne krawędzie są sortowane według x, " +
+            "a przedziały między parami przecięć są wypełniane pikselami.");
+        Formula(box, "xnastępne = xbieżące + Δx/Δy");
+        Paragraph(box,
+            "Dla każdego piksela wyznaczane są współrzędne " +
+            "barycentryczne (α, β, γ). Służą one do interpolowania " +
+            "głębokości z, wektora normalnego oraz parametrów " +
+            "tekstury u i v. Przy włączonej mapie normalnych " +
+            "interpolowane są również wektory styczne.");
 
-    R(k, theta) = I * cos(theta) + (1 - cos(theta)) * (k * k^T)
-                  + sin(theta) * [k]_x
+        Section(box, "4. Bufor głębokości");
+        Paragraph(box,
+            "Dla każdego piksela przechowywana jest największa " +
+            "dotychczas wyznaczona wartość z. Nowy fragment zastępuje " +
+            "poprzedni wyłącznie wtedy, gdy znajduje się bliżej " +
+            "obserwatora, który jest przyjęty po stronie dodatniej osi z. " +
+            "Zapewnia to poprawne wzajemne przesłanianie wypełnionych " +
+            "powierzchni. Linie wieloboków kontrolnych są rysowane " +
+            "osobno jako nakładka 2D.");
 
-Dla trybu Roll (PPM lub Shift + LPM) wyznaczana jest różnica kąta
-biegunowego kursora względem środka ekranu:
-    d_gamma = atan2(y_curr, x_curr) - atan2(y_prev, x_prev)
-    R_przyrost = R_z(d_gamma).
+        Section(box, "5. Model oświetlenia");
+        Paragraph(box,
+            "Kolor piksela jest obliczany ze składowej rozproszonej " +
+            "Lamberta i składowej zwierciadlanej Phonga, osobno dla " +
+            "kanałów R, G i B:");
+        Formula(box, "I = IL · IO · [kd max(0, N·L) + ks max(0, V·R)^m]");
+        Formula(box, "R = 2(N·L)N − L,     V = (0, 0, 1)");
+        Paragraph(box,
+            "N oznacza normalną powierzchni, L kierunek do źródła " +
+            "światła, a R kierunek odbicia. Wektory kierunkowe są " +
+            "normalizowane. Dla powierzchni zwróconej tyłem do obserwatora " +
+            "normalna używana w oświetleniu jest odwracana. " +
+            "Kolor wynikowy jest ograniczany do zakresu 0–255.");
+        Section(box, "6. Tekstura i mapa normalnych");
+        Paragraph(box,
+            "Kolor obiektu IO może być stały albo odczytywany z tekstury " +
+            "na podstawie parametrów (u, v). Zewnętrzna mapa normalnych " +
+            "jest dekodowana z kanałów RGB do składowych wektora, " +
+            "który następnie jest normalizowany.");
+        Formula(box, "N' = normalize(Pu · nx + Pv · ny + N · nz)");
+        Paragraph(box,
+            "We wzorze Pu i Pv oznaczają znormalizowane styczne " +
+            "wyznaczone na powierzchni, a (nx, ny, nz) – wektor " +
+            "odczytany z mapy normalnych. Składowa nz jest dodatnia. " +
+            "Zmodyfikowana normalna jest wykorzystywana do obliczenia " +
+            "oświetlenia piksela.");
 
-4. SKŁADANIE NARASTAJĄCE I ORTONORMALIZACJA
---------------------------------------------------------------------
-Nową orientację sceny wyznaczamy przez lewostronne złożenie macierzy
-(konwencja wektorów kolumnowych P' = R * P):
-
-    R_nowa = R_przyrost * R_aktualna
-
-Po każdym kroku kolumny R_nowa są ortonormalizowane metodą
-Grama-Schmidta (Matrix3x3.Orthonormalize), co zapobiega kumulacji
-błędów zaokrągleń zmiennoprzecinkowych (skalowaniu lub ścinaniu
-siatki po wielu obrotach).
-
-Punkty wierzchołków oraz punkty kontrolne są obracane wokół środka
-sceny (0,0,0), a wektory styczne Pu, Pv oraz normalny N są obracane
-tą samą macierzą R_nowa i normalizowane.
-""";
-
-    private static string GetMathOverviewText() =>
-"""
-====================================================================
-  MODEL MATEMATYCZNY I ZASTOSOWANE ALGORYTMY
-====================================================================
-
-1. POWIERZCHNIE BÉZIERA 3. STOPNIA (Models/BezierSurface.cs)
-   P(u,v) = sum_{i=0..3} sum_{j=0..3} V_ij * B_{i,3}(u) * B_{j,3}(v)
-   Pu = dP/du, Pv = dP/dv, N = normalize(Pu x Pv).
-
-2. WYPEŁNIANIE TRÓJKĄTÓW (Rendering/ScanlineRasterizer.cs)
-   Zastosowano algorytm scan-line z sortowaniem kubełkowym krawędzi
-   (Edge Table + Active Edge Table). Krawędzie niepoziome są
-   umieszczane w kubełkach indeksowanych przez y_start, aktywowane
-   przy wejściu linii skanującej, sortowane po X i aktualizowane
-   krokiem x += 1/m.
-
-3. INTERPOLACJA BARYCENTRYCZNA I Z-BUFFER
-   Wewnątrz każdego piksela wyznaczane są współrzędne barycentryczne
-   (alpha, beta, gamma) służące do interpolacji głębokości z,
-   wektora normalnego N, wektorów stycznych Pu, Pv oraz parametrów
-   (u, v). Bufor głębokości (Z-buffer) przechowuje największe z
-   dla każdego piksela (obserwator po stronie +Z, V = [0, 0, 1]).
-
-4. MODEL OŚWIETLENIA I MAPA NORMALNYCH (Rendering/LightingModel.cs)
-   I = kd * I_L * I_O * max(0, <N, L>)
-       + ks * I_L * I_O * max(0, <V, R>)^m
-   gdzie R = 2 * <N, L> * N - L.
-   Uwzględniono dwie strony powierzchni (odwrócenie N gdy N_pow.z < 0).
-   Dla włączonej mapy normalnych: N = normalize(M * N_tex), gdzie
-   M = [Pu, Pv, N_pow].
-""";
-}
+        Section(box, "7. Ruch źródła światła");
+        Paragraph(box,
+            "Tor źródła światła tworzą dwa połączone segmenty " +
+            "sześciennej krzywej Béziera. Położenie w płaszczyźnie xy " +
+            "jest obliczane z wielomianów Bernsteina, natomiast " +
+            "współrzędna z pozostaje stała i jest regulowana suwakiem. " +
+            "Parametr animacji jest aktualizowany na podstawie czasu " +
+            "między kolejnymi odświeżeniami.");
+    }
+    }
